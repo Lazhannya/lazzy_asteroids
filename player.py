@@ -4,13 +4,19 @@ from circleshape import CircleShape
 
 
 class Player(CircleShape):
-    def __init__(self, x, y):
+    def __init__(self, x, y, laser_sound=None, death_sound=None):
         super().__init__(x, y, PLAYER_RADIUS)
         self.rotation = 0
         self.shot_cooldown = 0  # Cooldown timer for shooting
+        self.laser_sound = laser_sound  # Sound effect for shooting
+        self.death_sound = death_sound  # Sound effect for death
+        self.lives = 3  # Player starts with 3 lives
+        self.invulnerable = 0  # Invulnerability timer after being hit
 
     def draw(self, screen):
-        pygame.draw.polygon(screen, "white", self.triangle(), 2)
+        # Make player blink when invulnerable
+        if self.invulnerable <= 0 or (self.invulnerable * 10) % 2 < 1:
+            pygame.draw.polygon(screen, "white", self.triangle(), 2)
 
     def triangle(self):
         forward = pygame.Vector2(0, 1).rotate(self.rotation)
@@ -31,6 +37,10 @@ class Player(CircleShape):
         # Update cooldown timer
         if self.shot_cooldown > 0:
             self.shot_cooldown -= dt
+        
+        # Update invulnerability timer
+        if self.invulnerable > 0:
+            self.invulnerable -= dt
             
         keys = pygame.key.get_pressed()
         if keys[pygame.K_a]:
@@ -69,11 +79,32 @@ class Player(CircleShape):
         # because Shot.containers is defined in main.py
         shot = Shot(shot_pos.x, shot_pos.y, self.rotation)
         
+        # Play laser sound effect if available
+        if self.laser_sound:
+            self.laser_sound.play()
+            
         # Print debug info
         print(f"Player shot at position {shot_pos} with rotation {self.rotation}")
         return shot
         
     def collide(self, other):
+        # Don't collide when invulnerable
+        if self.invulnerable > 0:
+            return False
+            
         # Simple circle collision detection
         distance = (self.position - other.position).length()
         return distance < (self.radius + other.radius)
+        
+    def lose_life(self):
+        """Player loses a life and becomes invulnerable for a short time"""
+        self.lives -= 1
+        self.invulnerable = 3.0  # 3 seconds of invulnerability
+        
+        # Play death sound
+        if self.death_sound:
+            self.death_sound.play()
+            
+        # Print debug info
+        print(f"Player lost a life! Lives remaining: {self.lives}")
+        return self.lives <= 0  # Return True if game over

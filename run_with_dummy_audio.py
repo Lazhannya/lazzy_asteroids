@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+import os
 import pygame
 from constants import *
 from player import Player
@@ -5,6 +7,10 @@ from asteroid import Asteroid
 from asteroidfield import AsteroidField
 from shot import Shot
 
+# Try to set audio driver to null/dummy before pygame initialization
+os.environ['SDL_AUDIODRIVER'] = 'pulse'
+
+# The rest of your main.py content follows
 updatable = pygame.sprite.Group()
 drawable = pygame.sprite.Group()
 asteroids = pygame.sprite.Group()
@@ -18,14 +24,15 @@ Shot.containers = (updatable, drawable, shots)
 
 def init_game():
     """Initialize the game and return necessary objects"""
+    pygame.init()
+    
     # Try to initialize the sound mixer, but continue if it fails
     laser_sound = None
     rock_break_sound = None
     death_sound = None
     lose_sound = None
     try:
-        # Try with more compatible settings (lower frequency, mono audio)
-        pygame.mixer.init(frequency=22050, size=-16, channels=4, buffer=512)
+        pygame.mixer.init(channels=4)
         
         # Reserve channel 1 for asteroid breaking sounds to prevent overlapping
         rock_break_channel = pygame.mixer.Channel(1)
@@ -51,40 +58,10 @@ def init_game():
         
         lose_sound = pygame.mixer.Sound("sounds/lose.ogg")
         lose_sound.set_volume(0.4)  # Set game over sound volume to 40%
-        print("Sound initialized successfully!")
+        print("Sound initialized successfully with dummy driver!")
     except pygame.error as e:
-        try:
-            # If default fails, try with minimal settings
-            pygame.mixer.init(frequency=11025, size=-8, channels=4, buffer=4096)
-            
-            # Reserve channel 1 for asteroid breaking sounds to prevent overlapping
-            rock_break_channel = pygame.mixer.Channel(1)
-            rock_break_channel.set_volume(0.4)  # Set volume to 40% for this channel
-            
-            # Reserve channel 2 for player death sound
-            death_channel = pygame.mixer.Channel(2)
-            death_channel.set_volume(0.4)  # Set volume to 40% for this channel
-            
-            # Reserve channel 3 for game over sound
-            lose_channel = pygame.mixer.Channel(3)
-            lose_channel.set_volume(0.4)  # Set volume to 40% for this channel
-            
-            laser_sound = pygame.mixer.Sound("sounds/laser.ogg")
-            laser_sound.set_volume(0.4)  # Set laser sound volume to 40% as well
-            
-            rock_break_sound = pygame.mixer.Sound("sounds/rock_break.ogg")
-            # Set the volume of rock_break sound to 40%
-            rock_break_sound.set_volume(0.4)
-            
-            death_sound = pygame.mixer.Sound("sounds/heavy_ded.mp3")
-            death_sound.set_volume(0.4)  # Set death sound volume to 40%
-            
-            lose_sound = pygame.mixer.Sound("sounds/lose.ogg")
-            lose_sound.set_volume(0.4)  # Set game over sound volume to 40%
-            print("Sound initialized with minimal settings!")
-        except pygame.error as e2:
-            print(f"Sound could not be initialized: {e}")
-            print("Game will continue without sound.")
+        print(f"Sound could not be initialized: {e}")
+        print("Game will continue without sound.")
     
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     clock = pygame.time.Clock()
@@ -152,10 +129,8 @@ def game_loop(screen, clock, player, asteroid_field, laser_sound, rock_break_sou
     
     # Main game loop
     running = True
-    game_over = False
     frame_count = 0
     dt = 0
-    
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -195,8 +170,7 @@ def game_loop(screen, clock, player, asteroid_field, laser_sound, rock_break_sou
                     asteroid.split()  # Call the split method instead of just killing the asteroid
                     # Play rock breaking sound effect if available
                     if rock_break_sound:
-                        # Use the reserved channel to prevent overlapping sounds
-                        # If a sound is already playing, it will be stopped and the new one will start
+                        # Use the dedicated channel for rock break sounds to prevent overlapping
                         rock_break_channel.play(rock_break_sound)
                     print("Shot hit asteroid!")
 
@@ -217,8 +191,6 @@ def game_loop(screen, clock, player, asteroid_field, laser_sound, rock_break_sou
 
 def main():
     """Main game function handling game over and restart"""
-    pygame.init()
-    
     # Game state variables
     running = True
     
